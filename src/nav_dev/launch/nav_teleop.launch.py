@@ -22,15 +22,48 @@ def generate_launch_description():
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
     world_name = LaunchConfiguration('world_name', default='world')
 
+    #ワールドのsdfファイルを設定(worldタグのあるsdfファイル)
+    world = os.path.join(pkg_share_dir, "models", "worlds", "nav_slam.sdf")
+
     #ignition gazeboの起動設定
     ign_gz = IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 [os.path.join(get_package_share_directory('ros_ign_gazebo'),
                             'launch', 'ign_gazebo.launch.py')]),
             launch_arguments=[('ign_args', [' -r -v 3 ' +
-                            os.path.join(model_path, "world.sdf")
+                            world
                             ])])
-    
+
+    #ロボットをスポーンさせる設定
+    ignition_spawn_entity = Node(
+        package='ros_ign_gazebo',
+        executable='create',
+        output='screen',
+        arguments=['-entity', 'LidarRobo',
+                '-name', 'LidarRobo',
+                #ロボットのsdfファイルを指定
+                '-file', PathJoinSubstitution([
+                        pkg_share_dir,
+                        "models", "LidarRobo", "model.sdf"]),
+                    #ロボットの位置を指定
+                '-allow_renaming', 'true',
+                '-x', '0.1',
+                '-y', '0.2',
+                '-z', '0.075'],
+        )
+
+    #フィールドをスポーンさせる設定
+    ignition_spawn_world = Node(
+        package='ros_ign_gazebo',
+        executable='create',
+        output='screen',
+            #フィールドのsdfファイルを指定
+        arguments=['-file', PathJoinSubstitution([
+                        pkg_share_dir,
+                        "models", "field", "model.sdf"]),
+                '-allow_renaming', 'false'],
+        )
+
     #ros_ign_bridgeの起動設定
     bridge = Node(
         package='ros_ign_bridge',
@@ -52,9 +85,11 @@ def generate_launch_description():
                 )
     
     return LaunchDescription([
-        ign_resource_path,
         ign_gz,
-                             
+        ign_resource_path,
+        ignition_spawn_world,
+        ignition_spawn_entity,
+                            
         DeclareLaunchArgument(
             'use_sim_time',
             default_value=use_sim_time,
@@ -68,3 +103,4 @@ def generate_launch_description():
         bridge,
         teleop_node,
     ])
+
